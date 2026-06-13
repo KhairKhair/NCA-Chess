@@ -36,6 +36,7 @@ to zero. One step of the automaton does three things:
 
 - **Perceive** — a single 3×3 convolution. This is the only place spatial information
   moves between squares, so a cell gains one "ring" of neighbourhood awareness per step.
+  3 fixed kernels like the Growing CNA paper. 
 - **Update** — a small per-cell network that proposes a residual change to the state. It
   starts initialized to do nothing.
 - **Stabilize** — the change is added to the state, the true board is re-injected into the
