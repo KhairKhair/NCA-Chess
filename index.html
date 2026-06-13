@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>NCA Chess — play & watch the NCA think</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+
+  :root{
+    --bg:#0a1512;
+    --panel:#13201c;
+    --panel-2:#0f1a17;
+    --ink:#eafff5;
+    --dim:#7fa493;
+    --phos:#4dffb0;
+    --phos-soft:#c4ffe4;
+    --phos-dim:#1f7a55;
+    --coral:#ff6e96;
+    --cyan:#5ce6ff;
+    --amber:#ffd98c;
+    --line:#27433a;
+    --light:#2a3f39;
+    --dark:#16211d;
+    --glow:0 0 16px;
+  }
+
+  *{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+  }
+
+  html,body{
+    min-height:100%;
+  }
+
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Space Mono',monospace;
+    padding:34px 30px 60px;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  .aurora{
+    position:fixed;
+    inset:-20%;
+    z-index:-3;
+    pointer-events:none;
+    background:
+      radial-gradient(38% 46% at 18% 8%, rgba(62,240,160,.20), transparent 60%),
+      radial-gradient(34% 40% at 88% 22%, rgba(62,220,255,.14), transparent 60%),
+      radial-gradient(46% 52% at 70% 96%, rgba(255,94,138,.12), transparent 62%),
+      radial-gradient(40% 44% at 4% 90%, rgba(62,240,160,.10), transparent 60%);
+    filter:blur(8px);
+    animation:drift 22s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift{
+    0%{transform:translate3d(0,0,0) scale(1)}
+    50%{transform:translate3d(-2%,1.5%,0) scale(1.05)}
+    100%{transform:translate3d(2%,-1%,0) scale(1.02)}
+  }
+
+  .scan{
+    position:fixed;
+    inset:0;
+    z-index:-2;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,.09) 0px,
+      rgba(0,0,0,.09) 1px,
+      transparent 2px,
+      transparent 4px
+    );
+    mix-blend-mode:multiply;
+    animation:flicker 6s steps(60) infinite;
+  }
+
+  @keyframes flicker{
+    0%,97%{opacity:.85}
+    98%{opacity:.6}
+    99%{opacity:.9}
+    100%{opacity:.8}
+  }
+
+  .grain{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  body::after{
+    content:'';
+    position:fixed;
+    inset:0;
+    z-index:-1;
+    pointer-events:none;
+    background:radial-gradient(
+      120% 120% at 50% 30%,
+      transparent 60%,
+      rgba(0,0,0,.38) 100%
+    );
+  }
+
+  header{
+    margin-bottom:26px;
+    animation:rise .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:42px;
+    letter-spacing:-1px;
+    line-height:1;
+    background:linear-gradient(92deg,var(--phos-soft),var(--phos) 40%,var(--cyan));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    filter:drop-shadow(0 0 18px rgba(62,240,160,.35));
+  }
+
+  h1 .dot{
+    color:var(--coral);
+    -webkit-text-fill-color:var(--coral);
+    text-shadow:var(--glow) var(--coral);
+    animation:beat 1.6s ease-in-out infinite;
+    display:inline-block;
+  }
+
+  @keyframes beat{
+    0%,100%{transform:scale(1);opacity:.9}
+    50%{transform:scale(1.35);opacity:1}
+  }
+
+  .sub{
+    color:var(--dim);
+    font-size:11.5px;
+    margin-top:8px;
+    letter-spacing:2px;
+  }
+
+  .sub b{
+    color:var(--phos);
+    font-weight:400;
+  }
+
+  .wrap{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    gap:40px;
+    align-items:start;
+    max-width:1140px;
+  }
+
+  .board-stage{
+    animation:rise .8s .08s cubic-bezier(.2,.8,.2,1) both;
+  }
+
+  .board{
+    display:grid;
+    grid-template-columns:repeat(8,54px);
+    grid-template-rows:repeat(8,54px);
+    border:1px solid var(--phos-dim);
+    border-radius:4px;
+    overflow:hidden;
+    box-shadow:
+      0 0 0 1px #000,
+      0 0 32px rgba(62,240,160,.18),
+      0 22px 60px #000a;
+    position:relative;
+  }
+
+  .sq{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:36px;
+    cursor:pointer;
+    user-select:none;
+    position:relative;
+    transition:background .14s, transform .08s;
+    isolation:isolate;
+  }
+
+  .sq.l{background:var(--light)}
+  .sq.d{background:var(--dark)}
+
+  .sq.l::before,
+  .sq.d::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:radial-gradient(
+      circle at 50% 35%,
+      rgba(62,240,160,.05),
+      transparent 70%
+    );
+    opacity:0;
+    transition:opacity .14s;
+  }
+
+  .sq:hover::before{opacity:1}
+  .sq:hover{background:#26352f}
+
+  .sq.sel{
+    outline:2px solid var(--phos);
+    outline-offset:-3px;
+    box-shadow:inset 0 0 22px rgba(62,240,160,.5);
+    animation:selpulse 1.1s ease-in-out infinite;
+    z-index:2;
+  }
+
+  @keyframes selpulse{
+    0%,100%{box-shadow:inset 0 0 16px rgba(62,240,160,.35)}
+    50%{box-shadow:inset 0 0 30px rgba(62,240,160,.65)}
+  }
+
+  .sq .w,
+  .sq .b{
+    position:relative;
+    z-index:3;
+  }
+
+  .sq .w{
+    color:#f4fbf7;
+    text-shadow:0 0 10px rgba(166,255,214,.6),0 1px 2px #000;
+  }
+
+  .sq .b{
+    color:#0a0f0d;
+    text-shadow:0 0 7px rgba(62,240,160,.55),0 1px 0 #2c4a3e;
+  }
+
+  .act{
+    z-index:1;
+  }
+
+  .sq.last-from{
+    box-shadow:inset 0 0 0 3px rgba(255,207,119,.95);
+  }
+
+  .sq.last-to{
+    box-shadow:
+      inset 0 0 0 3px rgba(62,240,160,.95),
+      inset 0 0 22px rgba(62,240,160,.38);
+  }
+
+  .sq.last-from::after,
+  .sq.last-to::after{
+    position:absolute;
+    top:3px;
+    right:4px;
+    font-size:8px;
+    font-weight:700;
+    letter-spacing:.8px;
+    z-index:4;
+    text-shadow:0 1px 2px #000;
+  }
+
+  .sq.last-from::after{
+    content:'FROM';
+    color:var(--amber);
+  }
+
+  .sq.last-to::after{
+    content:'TO';
+    color:var(--phos-soft);
+  }
+
+  .status{
+    margin-top:18px;
+    font-size:14px;
+    color:var(--phos);
+    min-height:22px;
+    letter-spacing:.5px;
+    text-shadow:0 0 12px rgba(62,240,160,.4);
+  }
+
+  .status.working::after{
+    content:'';
+    animation:dots 1.2s steps(4,end) infinite;
+  }
+
+  @keyframes dots{
+    0%{content:''}
+    25%{content:'·'}
+    50%{content:'··'}
+    75%{content:'···'}
+  }
+
+  .status.over{
+    color:var(--coral);
+    text-shadow:0 0 12px rgba(255,94,138,.5);
+  }
+
+  .meta{
+    margin-top:8px;
+    font-size:11px;
+    color:var(--dim);
+    letter-spacing:.5px;
+  }
+
+  .meta b{
+    color:var(--cyan);
+    font-weight:400;
+  }
+
+  .movebox{
+    margin-top:14px;
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+  }
+
+  .movelab{
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:1.5px;
+  }
+
+  .movechip{
+    display:inline-block;
+    width:fit-content;
+    min-width:165px;
+    padding:9px 12px;
+    border:1px solid var(--phos-dim);
+    border-radius:6px;
+    background:rgba(62,240,160,.06);
+    color:var(--phos-soft);
+    font-size:12px;
+    line-height:1.5;
+    box-shadow:0 0 14px rgba(62,240,160,.10);
+  }
+
+  button{
+    font-family:'Space Mono',monospace;
+    background:transparent;
+    color:var(--phos);
+    border:1px solid var(--phos-dim);
+    border-radius:3px;
+    padding:9px 18px;
+    cursor:pointer;
+    font-size:12px;
+    letter-spacing:2px;
+    margin-top:18px;
+    transition:all .18s;
+    position:relative;
+    overflow:hidden;
+  }
+
+  button:hover{
+    background:var(--phos);
+    color:#04110b;
+    box-shadow:var(--glow) rgba(62,240,160,.55);
+    border-color:var(--phos);
+  }
+
+  button:active{
+    transform:translateY(1px);
+  }
+
+  .evo{
+    min-width:0;
+    background:linear-gradient(160deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:24px;
+    box-shadow:
+      inset 0 1px 0 rgba(62,240,160,.05),
+      0 18px 50px #0007;
+    animation:rise .85s .16s cubic-bezier(.2,.8,.2,1) both;
+  }
+
+  .evo h2{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:21px;
+    color:var(--phos-soft);
+  }
+
+  .evo .h2sub{
+    color:var(--dim);
+    font-size:10.5px;
+    margin:4px 0 20px;
+    letter-spacing:1px;
+  }
+
+  .legend{
+    display:flex;
+    gap:18px;
+    font-size:10px;
+    color:var(--dim);
+    margin-bottom:18px;
+    letter-spacing:1px;
+  }
+
+  .legend i{
+    display:inline-block;
+    width:10px;
+    height:10px;
+    border-radius:2px;
+    margin-right:6px;
+    vertical-align:-1px;
+  }
+
+  .legend .pos{
+    background:var(--phos);
+    box-shadow:0 0 8px var(--phos);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(80px,1fr));
+    gap:14px;
+  }
+
+  .mini{
+    animation:pop .4s cubic-bezier(.2,1.4,.4,1) both;
+  }
+
+  @keyframes pop{
+    from{opacity:0;transform:scale(.6) translateY(6px)}
+    to{opacity:1;transform:none}
+  }
+
+  .mini .lab{
+    font-size:10px;
+    color:var(--dim);
+    margin-bottom:5px;
+    letter-spacing:1px;
+    transition:color .15s;
+  }
+
+  .mini.cur .lab{
+    color:var(--phos);
+    text-shadow:0 0 8px rgba(62,240,160,.5);
+  }
+
+  canvas{
+    image-rendering:pixelated;
+    border:1px solid var(--line);
+    border-radius:3px;
+    display:block;
+    transition:box-shadow .2s,border-color .2s;
+    background:#0a100e;
+  }
+
+  .mini canvas{
+    width:100%;
+  }
+
+  .mini.cur canvas{
+    border-color:var(--phos);
+    box-shadow:0 0 16px rgba(62,240,160,.4);
+  }
+
+  .scrub{
+    margin-top:24px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .scrub .tag{
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:1px;
+  }
+
+  input[type=range]{
+    flex:1;
+    accent-color:var(--phos);
+    height:4px;
+    cursor:pointer;
+  }
+
+  #stepnum{
+    font-size:12px;
+    color:var(--phos);
+    width:58px;
+    text-align:right;
+    text-shadow:0 0 8px rgba(62,240,160,.4);
+  }
+
+  @keyframes rise{
+    from{opacity:0;transform:translateY(16px)}
+    to{opacity:1;transform:none}
+  }
+
+  @media(max-width:860px){
+    body{
+      padding:24px 16px 40px;
+    }
+
+    .wrap{
+      grid-template-columns:1fr;
+      gap:30px;
+    }
+
+    .board{
+      width:min(100%,432px);
+      grid-template-columns:repeat(8,minmax(0,1fr));
+      grid-template-rows:repeat(8,1fr);
+      aspect-ratio:1;
+    }
+
+    .sq{
+      font-size:30px;
+    }
+  }
+</style>
+</head>
+
+<body>
+  <div class="aurora"></div>
+  <div class="scan"></div>
+  <div class="grain"></div>
+
+  <header>
+    <h1>NCA<span class="dot">·</span>chess</h1>
+    <div class="sub">
+      PLAY THE <b>CELLULAR AUTOMATON</b> — WATCH EACH MOVE FORM ACROSS TIMESTEPS
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="board-stage">
+      <div class="board" id="board"></div>
+
+      <div class="status" id="status">your move.</div>
+      <div class="meta" id="meta"></div>
+
+      <div class="movebox">
+        <div class="movelab">LAST OPPONENT MOVE</div>
+        <div class="movechip" id="oppmove">—</div>
+      </div>
+
+      <button type="button" onclick="reset()">↺ NEW GAME</button>
+    </div>
+
+    <div class="evo">
+      <h2>state evolution</h2>
+
+      <div class="h2sub">
+        DECISION READOUT — FROM/TO PROBABILITY AT EACH CA STEP
+      </div>
+
+      <div class="legend">
+        <span><i class="pos"></i>DECISION PROBABILITY</span>
+      </div>
+
+      <div class="grid" id="frames"></div>
+
+      <div class="scrub">
+        <span class="tag">STEP</span>
+
+        <input
+          type="range"
+          id="slider"
+          min="0"
+          max="0"
+          value="0"
+          oninput="showStep(this.value); overlayActivity(+this.value)"
+        />
+
+        <span id="stepnum">—</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+const GLYPH = {
+  p:'♟',
+  n:'♞',
+  b:'♝',
+  r:'♜',
+  q:'♛',
+  k:'♚'
+};
+
+const INITIAL_FEN =
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+let fen = INITIAL_FEN;
+let sel = null;
+let frames = [];
+let activityFrames = [];
+let busy = false;
+
+let lastModelMove = null;
+let lastModelMoveSAN = null;
+
+
+function parseFEN(fenString){
+  const rows = fenString.split(' ')[0].split('/');
+  const grid = [];
+
+  for(let rank = 7; rank >= 0; rank--){
+    const fenRow = rows[7 - rank];
+    const line = [];
+
+    for(const ch of fenRow){
+      if(/\d/.test(ch)){
+        for(let i = 0; i < Number(ch); i++){
+          line.push(null);
+        }
+      }else{
+        line.push(ch);
+      }
+    }
+
+    grid[rank] = line;
+  }
+
+  return grid;
+}
+
+
+function sqName(rank, file){
+  return "abcdefgh"[file] + (rank + 1);
+}
+
+
+function uciToSquares(uci){
+  if(!uci || uci.length < 4){
+    return null;
+  }
+
+  const fromFile = "abcdefgh".indexOf(uci[0]);
+  const fromRank = Number(uci[1]) - 1;
+  const toFile = "abcdefgh".indexOf(uci[2]);
+  const toRank = Number(uci[3]) - 1;
+
+  if(
+    fromFile < 0 ||
+    toFile < 0 ||
+    fromRank < 0 ||
+    fromRank > 7 ||
+    toRank < 0 ||
+    toRank > 7
+  ){
+    return null;
+  }
+
+  return {
+    from:{r:fromRank,c:fromFile},
+    to:{r:toRank,c:toFile}
+  };
+}
+
+
+function updateOpponentMove(uci, san){
+  const box = document.getElementById('oppmove');
+
+  if(!uci){
+    box.textContent = '—';
+    return;
+  }
+
+  const arrow = `${uci.slice(0,2)} → ${uci.slice(2,4)}`;
+  box.textContent = san ? `${san}  (${arrow})` : arrow;
+}
+
+
+function drawBoard(){
+  const grid = parseFEN(fen);
+  const boardElement = document.getElementById('board');
+
+  boardElement.innerHTML = '';
+
+  const lastMoveSquares = uciToSquares(lastModelMove);
+
+  for(let rank = 7; rank >= 0; rank--){
+    for(let file = 0; file < 8; file++){
+      const square = document.createElement('div');
+      square.className = 'sq ' + (((rank + file) % 2) ? 'l' : 'd');
+
+      const piece = grid[rank][file];
+
+      if(piece){
+        const pieceElement = document.createElement('span');
+
+        pieceElement.className =
+          piece === piece.toUpperCase() ? 'w' : 'b';
+
+        pieceElement.textContent = GLYPH[piece.toLowerCase()];
+        square.appendChild(pieceElement);
+      }
+
+      if(lastMoveSquares){
+        if(
+          lastMoveSquares.from.r === rank &&
+          lastMoveSquares.from.c === file
+        ){
+          square.classList.add('last-from');
+        }
+
+        if(
+          lastMoveSquares.to.r === rank &&
+          lastMoveSquares.to.c === file
+        ){
+          square.classList.add('last-to');
+        }
+      }
+
+      if(sel && sel.r === rank && sel.c === file){
+        square.classList.add('sel');
+      }
+
+      square.onclick = () => clickSq(rank, file);
+      boardElement.appendChild(square);
+    }
+  }
+}
+
+
+function setStatus(text, kind = ''){
+  const status = document.getElementById('status');
+  status.textContent = text;
+  status.className = 'status' + (kind ? ` ${kind}` : '');
+}
+
+
+async function postJSON(url, payload){
+  const response = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+
+  if(!response.ok){
+    throw new Error(
+      data.error || `Request failed with status ${response.status}`
+    );
+  }
+
+  return data;
+}
+
+
+async function clickSq(rank, file){
+  if(busy){
+    return;
+  }
+
+  if(sel === null){
+    sel = {r:rank,c:file};
+    drawBoard();
+    return;
+  }
+
+  const uci = sqName(sel.r, sel.c) + sqName(rank, file);
+  sel = null;
+
+  try{
+    const result = await postJSON('/legal', {fen,uci});
+
+    if(!result.ok){
+      setStatus('illegal move.', 'over');
+      drawBoard();
+      return;
+    }
+
+    fen = result.fen;
+    drawBoard();
+
+    if(result.game_over){
+      setStatus(`game over · ${result.result}`, 'over');
+      return;
+    }
+
+    await modelMove();
+  }catch(error){
+    console.error(error);
+    setStatus(`request failed · ${error.message}`, 'over');
+    drawBoard();
+  }
+}
+
+
+async function modelMove(){
+  busy = true;
+  setStatus('model is thinking', 'working');
+
+  try{
+    const result = await postJSON('/predict', {fen});
+
+    if(result.game_over && !result.move){
+      setStatus(`game over · ${result.result}`, 'over');
+      return;
+    }
+
+    frames = Array.isArray(result.frames) ? result.frames : [];
+    activityFrames = frames;
+
+    buildFrames();
+
+    lastModelMove = result.move || null;
+    lastModelMoveSAN = result.move_san || null;
+
+    updateOpponentMove(lastModelMove, lastModelMoveSAN);
+
+    document.getElementById('meta').innerHTML =
+      `raw decode: <b>${result.raw}</b> · played: <b>` +
+      `${result.move_san || result.move}</b>`;
+
+    await animate();
+
+    fen = result.fen_after;
+    drawBoard();
+
+    if(result.game_over){
+      setStatus(`game over · ${result.result}`, 'over');
+    }else{
+      setStatus(
+        `opponent played ${result.move_san || result.move} · your move.`
+      );
+    }
+  }catch(error){
+    console.error(error);
+    setStatus(`model request failed · ${error.message}`, 'over');
+  }finally{
+    busy = false;
+  }
+}
+
+
+function activityColor(value){
+  const alpha = Math.max(0, Math.min(1, value));
+  return `rgba(62,240,160,${0.08 + 0.92 * alpha})`;
+}
+
+
+function paint(canvas, frame){
+  const context = canvas.getContext('2d');
+
+  context.clearRect(0, 0, 8, 8);
+  context.fillStyle = '#0a100e';
+  context.fillRect(0, 0, 8, 8);
+
+  if(!frame){
+    return;
+  }
+
+  for(let rank = 0; rank < 8; rank++){
+    for(let file = 0; file < 8; file++){
+      const value = Number(frame[rank][file]) || 0;
+
+      if(value < 0.025){
+        continue;
+      }
+
+      context.fillStyle = activityColor(value);
+      context.fillRect(file, 7 - rank, 1, 1);
+    }
+  }
+}
+
+
+function buildFrames(){
+  const container = document.getElementById('frames');
+  container.innerHTML = '';
+
+  frames.forEach((frame, step) => {
+    const mini = document.createElement('div');
+    mini.className = 'mini';
+    mini.style.animationDelay = `${step * 0.04}s`;
+
+    const label = document.createElement('div');
+    label.className = 'lab';
+    label.textContent = `t=${step}`;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 8;
+    canvas.height = 8;
+
+    mini.appendChild(label);
+    mini.appendChild(canvas);
+    container.appendChild(mini);
+
+    paint(canvas, frame);
+  });
+
+  const slider = document.getElementById('slider');
+
+  if(frames.length === 0){
+    slider.min = 0;
+    slider.max = 0;
+    slider.value = 0;
+    document.getElementById('stepnum').textContent = '—';
+    return;
+  }
+
+  slider.min = 0;
+  slider.max = frames.length - 1;
+  slider.value = frames.length - 1;
+
+  showStep(frames.length - 1);
+}
+
+
+function showStep(step){
+  if(frames.length === 0){
+    return;
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(frames.length - 1, Number(step))
+  );
+
+  document.querySelectorAll('.grid .mini').forEach((mini, index) => {
+    mini.classList.toggle('cur', index === t);
+  });
+
+  document.getElementById('stepnum').textContent =
+    `${t}/${frames.length - 1}`;
+}
+
+
+function overlayActivity(step){
+  const t = Number(step);
+  const cells = document.querySelectorAll('#board .sq');
+  const frame = activityFrames[t];
+
+  if(!frame || cells.length !== 64){
+    return;
+  }
+
+  for(let rank = 7; rank >= 0; rank--){
+    for(let file = 0; file < 8; file++){
+      const cellIndex = (7 - rank) * 8 + file;
+      const value = Number(frame[rank][file]) || 0;
+      const square = cells[cellIndex];
+
+      let overlay = square.querySelector('.act');
+
+      if(!overlay){
+        overlay = document.createElement('div');
+        overlay.className = 'act';
+        overlay.style.cssText =
+          'position:absolute;inset:0;pointer-events:none;border-radius:2px;';
+        square.appendChild(overlay);
+      }
+
+      if(value > 0.025){
+        const alpha = Math.min(0.9, 0.12 + value * 0.78);
+        const glowSize = 4 + 14 * value;
+
+        overlay.style.background =
+          `radial-gradient(circle,rgba(62,240,160,${alpha}) 0%,` +
+          `rgba(62,240,160,${alpha * 0.36}) 42%,transparent 74%)`;
+
+        overlay.style.boxShadow =
+          value > 0.25
+            ? `inset 0 0 ${glowSize}px rgba(62,240,160,${Math.min(.8,value)})`
+            : 'none';
+      }else{
+        overlay.style.background = 'transparent';
+        overlay.style.boxShadow = 'none';
+      }
+    }
+  }
+}
+
+
+function animate(){
+  return new Promise(resolve => {
+    if(frames.length === 0){
+      resolve();
+      return;
+    }
+
+    let step = 0;
+
+    const interval = setInterval(() => {
+      document.getElementById('slider').value = step;
+      showStep(step);
+      overlayActivity(step);
+
+      step += 1;
+
+      if(step >= frames.length){
+        clearInterval(interval);
+        resolve();
+      }
+    }, 90);
+  });
+}
+
+
+function reset(){
+  fen = INITIAL_FEN;
+  sel = null;
+  frames = [];
+  activityFrames = [];
+  busy = false;
+
+  lastModelMove = null;
+  lastModelMoveSAN = null;
+
+  document.getElementById('frames').innerHTML = '';
+  document.getElementById('meta').textContent = '';
+  document.getElementById('oppmove').textContent = '—';
+
+  document.getElementById('slider').min = 0;
+  document.getElementById('slider').max = 0;
+  document.getElementById('slider').value = 0;
+  document.getElementById('stepnum').textContent = '—';
+
+  setStatus('your move.');
+  drawBoard();
+}
+
+
+drawBoard();
+</script>
+</body>
+</html>
