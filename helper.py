@@ -13,7 +13,6 @@ PIECE_VALUES = {
 }
 
 def board_to_tensor(board):
-    # Single channel 1x8x8: signed material value. White positive, black negative.
     t = torch.zeros(1, 8, 8, dtype=torch.float32)
     for sq, piece in board.piece_map().items():
         r, c = chess.square_rank(sq), chess.square_file(sq)
@@ -21,11 +20,13 @@ def board_to_tensor(board):
         t[0, r, c] = val if piece.color == chess.WHITE else -val
     return t
 
-def canonical_tensor(board):
-    # Flip to mover's perspective: mover's pieces positive, opponent negative.
+
+def canonical_tensor_as(board, perspective):
     x = board_to_tensor(board)
-    if board.turn == chess.WHITE:
+    if perspective == chess.WHITE:
         return x
-    # Black to move: vertical flip (rank dim) + negate signs so the mover is always +.
     x = torch.flip(x, dims=[1])
     return -x
+
+def canonical_tensor(board):
+    return canonical_tensor_as(board, board.turn)

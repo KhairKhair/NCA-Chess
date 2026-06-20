@@ -1,7 +1,7 @@
 import chess
 import torch
 from datasets import load_dataset
-from helper import canonical_tensor
+from helper import canonical_tensor, canonical_tensor_as
 
 
 def games_to_policy_dataset(
@@ -34,12 +34,11 @@ def games_to_policy_dataset(
                 break
 
             if i >= skip_opening and taken < max_per_game:
-                # board before move
-                Xs.append(canonical_tensor(board))
+                mover = board.turn                       # side about to move
+                Xs.append(canonical_tensor_as(board, mover))
                 fens.append(board.fen())
-                # make move, then save board after move
                 board.push(move)
-                Ys.append(canonical_tensor(board))
+                Ys.append(canonical_tensor_as(board, mover))   # SAME frame as X
                 taken += 1
             else:
                 board.push(move)
@@ -92,8 +91,9 @@ def load_split(cache="humanpolicy.pt", test_frac=0.1, seed=0):
 
 
 if __name__ == "__main__":
+    n_positions = 400
     games_to_policy_dataset(
-        n_positions=1000,
+        n_positions=n_positions,
         skip_opening=6,
-        max_per_game=1,
+        max_per_game=1,cache=f"humanpolicy_{n_positions}.pt",
     )
