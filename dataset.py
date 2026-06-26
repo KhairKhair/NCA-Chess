@@ -109,7 +109,7 @@ def load_split(cache="humanpolicy.pt", test_frac=0.1, seed=0):
 
 if __name__ == "__main__":
     sf = engine.SimpleEngine.popen_uci("./stockfish")
-    n_positions = 400
+    n_positions = 10000
     games_to_policy_dataset(
         engine=sf,
         n_positions=n_positions,
