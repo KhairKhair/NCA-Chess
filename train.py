@@ -13,10 +13,10 @@ def seed(x_vis, total_chn):
     return torch.cat([x_vis, pad], dim=1)
 
 
-def rollout(model, x_vis, steps):
+def rollout(model, x_vis, steps, update_rate):
     state = seed(x_vis, model.chn + model.out_chn)
     for _ in range(steps):
-        state = model(state)
+        state = model(state, update_rate)
     return state
 
 def train(
@@ -26,7 +26,7 @@ def train(
     epochs=200,
     bs=512,
     lr=1e-3,
-    eval_every=5,
+    eval_every=10,
     eval_n=500,
     device=None,
     min_steps=32,
@@ -34,6 +34,7 @@ def train(
     lr_step=2000,        # StepLR step_size, in OPTIMIZER STEPS (see note)
     lr_gamma=0.3,        # reference value
     grad_norm=True,      # per-parameter gradient normalization (Growing-NCA trick)
+    update_rate=0.5,
 ):
     X, Y, fens_tr = train_data
     Xte, Yte, fens_te = test_data
@@ -63,7 +64,7 @@ def train(
             yb = Y[idx].to(device)
 
             steps = torch.randint(min_steps, max_steps + 1, (1,)).item()
-            pred = rollout(model, xb, steps)
+            pred = rollout(model, xb, steps, update_rate)
             logits = pred[:, -NUM_RETURN_BUCKETS:].mean(dim=[-2, -1])
             loss = F.cross_entropy(logits, yb)
 
