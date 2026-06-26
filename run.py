@@ -2,7 +2,7 @@ import os, sys, json, itertools, time, traceback
 import torch
 from model import CA, VISIBLE
 from dataset import load_split
-from train import train, move_accuracy
+from train import train
 
 CACHE = "humanpolicy_10000.pt"
 RESULTS = "results_policy"
@@ -31,8 +31,8 @@ cfg = CONFIGS[task]
 print(f"=== task {task}/{len(CONFIGS) - 1} cfg={cfg} ===", flush=True)
 
 train_data, test_data = load_split(cache=CACHE, test_frac=0.1, seed=0)
-Xtr, fltr, tltr, fens_tr = train_data
-Xte, flte, tlte, fens_te = test_data
+Xtr, Ytr, fens_tr = train_data
+Xte, Yte, fens_te = test_data
 
 os.makedirs(RESULTS, exist_ok=True)
 
@@ -50,11 +50,6 @@ try:
         "cfg": cfg,
         "device": str(device),
         "status": "ok",
-        "final_train_acc": move_accuracy(model, Xtr[:500], fens_tr[:500],
-                                         fltr[:500], tltr[:500], device=device),
-        "final_test_acc":  move_accuracy(model, Xte[:500], fens_te[:500],
-                                         flte[:500], tlte[:500], device=device),
-        "best_test_acc":   max(history["test_acc"]),
         "final_loss":      history["loss"][-1],
         "seconds":         dur,
         "history":         history,
