@@ -12,7 +12,7 @@ def move_accuracy(model, X, fens, fl, tl, device=None):
     if device is None:
         device = next(model.parameters()).device
     model.eval()
-    fr, to = model(X.to(device))
+    fr, to = model(X.to(device).float())
     fr, to = fr.cpu(), to.cpu()
     hits = 0
     for i in range(X.shape[0]):
@@ -43,7 +43,7 @@ def train(model, train_data, test_data, epochs=200, bs=512, lr=1e-3,
     for ep in pbar:
         model.train()
         for idx in torch.randperm(N).split(bs):
-            xb = X[idx].to(device); fb = fl[idx].to(device); tb = tl[idx].to(device)
+            xb = X[idx].to(device).float(); fb = fl[idx].to(device); tb = tl[idx].to(device)
             frl, tol = model(xb)
             loss = policy_loss(frl, tol, fb, tb)
             opt.zero_grad(); loss.backward(); opt.step()
