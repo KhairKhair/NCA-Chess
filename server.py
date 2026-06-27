@@ -9,8 +9,8 @@ from flask import Flask, jsonify, request, send_file
 from model import PolicyChessCA
 from helper import canonical_tensor, sq_to_canonical
 
-RUN_JSON = "results_policy-mid/run_000.json"
-WEIGHTS_PT = "results_policy-mid/model_000.pt"
+RUN_JSON = "results_mid/run_000.json"
+WEIGHTS_PT = "results_mid/model_000.pt"
 
 # Load model config and weights
 with open(RUN_JSON, "r", encoding="utf-8") as f:
@@ -19,7 +19,6 @@ model = PolicyChessCA(
     channels=cfg["channels"],
     steps=cfg["steps"],
     hidden_act=cfg["hidden_act"],
-    bound_act=cfg["bound_act"],
     fire_rate=cfg.get("fire_rate", 1.0),
 )
 model.load_state_dict(torch.load(WEIGHTS_PT, map_location="cpu"))
