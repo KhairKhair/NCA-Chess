@@ -1,4 +1,0 @@
-  File "/scratch/mka7870/NCA-Chess/run.py", line 46
-    )
-    ^
-SyntaxError: positional argument follows keyword argument

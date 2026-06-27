@@ -1,22 +1,10 @@
 import chess
 import torch
 from datasets import load_dataset
-from helper import canonical_tensor_as
-import chess.engine as engine
-from dm_utils import (
-    tokenize,
-    centipawns_to_win_probability,
-    get_uniform_buckets_edges_values,
-    compute_return_buckets_from_returns,
-)
-import numpy as np
-
-NUM_RETURN_BUCKETS = 30
-_BUCKET_EDGES, _ = get_uniform_buckets_edges_values(NUM_RETURN_BUCKETS)
+from helper import canonical_tensor, canonical_tensor_as
 
 
 def games_to_policy_dataset(
-    engine,
     n_positions=20000,
     skip_opening=6,
     max_per_game=12,
@@ -24,7 +12,9 @@ def games_to_policy_dataset(
 ):
     # load dataset from https://github.com/angeluriot/Chess_games
     ds = load_dataset("angeluriot/chess_games", split="train", streaming=True)
-    # Xs = tokenized FEN, Ys = return bucket integer, fens = raw FEN strings
+    # Xs = board before move
+    # Ys = board after move
+    # fens = before-move FENs for eval/debug
     Xs, Ys, fens = [], [], []
 
     for game in ds:
@@ -44,18 +34,11 @@ def games_to_policy_dataset(
                 break
 
             if i >= skip_opening and taken < max_per_game:
-                mover = board.turn          
-                fens.append(board.fen())
-                result = engine.analyse(board, chess.engine.Limit(time=0.05))["score"]
-                centipawns = result.relative.score(mate_score=10000)
-                win_prob = centipawns_to_win_probability(centipawns)
-                bucket = int(compute_return_buckets_from_returns(
-                    np.asarray([win_prob]), _BUCKET_EDGES
-                )[0])
+                mover = board.turn                       # side about to move
                 Xs.append(canonical_tensor_as(board, mover))
-                Ys.append(bucket)
                 fens.append(board.fen())
                 board.push(move)
+                Ys.append(canonical_tensor_as(board, mover))   # SAME frame as X
                 taken += 1
             else:
                 board.push(move)
@@ -66,8 +49,8 @@ def games_to_policy_dataset(
         if len(Xs) >= n_positions:
             break
 
-    X = torch.stack(Xs)
-    Y = torch.tensor(Ys, dtype=torch.long)
+    X = torch.stack(Xs)  
+    Y = torch.stack(Ys)
     torch.save(
         {
             "X": X,
@@ -108,10 +91,8 @@ def load_split(cache="humanpolicy.pt", test_frac=0.1, seed=0):
 
 
 if __name__ == "__main__":
-    sf = engine.SimpleEngine.popen_uci("./stockfish")
-    n_positions = 10000
+    n_positions = 400
     games_to_policy_dataset(
-        engine=sf,
         n_positions=n_positions,
         skip_opening=6,
         max_per_game=1,cache=f"humanpolicy_{n_positions}.pt",
