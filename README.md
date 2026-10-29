@@ -1,7 +1,5 @@
 # NCA·chess
 
-> Play the cellular automaton — watch each move form across timesteps.
-
 A **Neural Cellular Automaton (NCA)** that predicts chess moves. Instead of mapping a
 board to a move in one shot, the model runs a local update rule over the 8×8 grid for
 many iterations. Each square only ever talks to its immediate neighbours, so a move has to
